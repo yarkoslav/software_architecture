@@ -1,0 +1,56 @@
+version: '3'
+
+services:
+  hazelcast-node1:
+    image: hazelcast/hazelcast:latest
+    container_name: hazelcast-node1
+    ports:
+    - "127.0.0.1:5701:5701"
+    volumes:
+    - ./hazelcast_config.yml:/opt/hazelcast/hazelcast_config.yml
+    networks:
+    - hazelcast-network
+    environment:
+    - HAZELCAST_CONFIG=hazelcast_config.yml
+
+  hazelcast-node2:
+    image: hazelcast/hazelcast:latest
+    container_name: hazelcast-node2
+    ports:
+    - "127.0.0.1:5702:5701"
+    volumes:
+    - ./hazelcast_config.yml:/opt/hazelcast/hazelcast_config.yml
+    networks:
+    - hazelcast-network
+    environment:
+    - HAZELCAST_CONFIG=hazelcast_config.yml
+    
+  hazelcast-node3:
+    image: hazelcast/hazelcast:latest
+    container_name: hazelcast-node3
+    ports:
+    - "127.0.0.1:5703:5701"
+    volumes:
+    - ./hazelcast_config.yml:/opt/hazelcast/hazelcast_config.yml
+    networks:
+    - hazelcast-network
+    environment:
+    - HAZELCAST_CONFIG=hazelcast_config.yml
+
+  management-center:
+    image: hazelcast/management-center:latest
+    container_name: management-center
+    ports:
+    - "8080:8080"
+    volumes:
+    - ./hazelcast_config.yml:/opt/hazelcast/hazelcast_config.yml
+    environment:
+    - MC_DEFAULT_CLUSTER=dev
+    - MC_DEFAULT_CLUSTER_MEMBERS=hazelcast-node1, hazelcast-node2, hazelcast-node3
+    - HAZELCAST_CONFIG=hazelcast_config.yml
+    networks:
+    - hazelcast-network
+
+networks:
+  hazelcast-network:
+    name: hazelcast-network
