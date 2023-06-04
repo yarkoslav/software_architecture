@@ -7,4 +7,4 @@ RUN pip install -r requirements.txt
 
 COPY ./facade_service.py /opt/app/
 
-ENTRYPOINT ["uvicorn", "facade_service:facade", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/bin/bash", "-c", "sleep 15 && uvicorn facade_service:facade --host 0.0.0.0 --port 8000"]

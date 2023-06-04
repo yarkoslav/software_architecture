@@ -1,4 +1,4 @@
-# Lab 3: Microservices with Hazelcast
+# Lab 4: Microservices with Message Queue (Kafka)
 
 ## Usage
 To build our system, please run:

@@ -7,12 +7,13 @@ services:
     - "8000:8000"
     container_name: facade
     depends_on:
-    - messages
+    - messages-node1
+    - messages-node2
     - logging-node1
     - logging-node2
     - logging-node3
     networks:
-    - micro-hazelcast
+    - micro-mq
 
   logging-node1:
     build: ./logging-service
@@ -22,7 +23,7 @@ services:
     depends_on:
     - hazelcast-node1
     networks:
-    - micro-hazelcast
+    - micro-mq
   
   logging-node2:
     build: ./logging-service
@@ -32,7 +33,7 @@ services:
     depends_on:
     - hazelcast-node2
     networks:
-    - micro-hazelcast
+    - micro-mq
   
   logging-node3:
     build: ./logging-service
@@ -42,15 +43,27 @@ services:
     depends_on:
     - hazelcast-node3
     networks:
-    - micro-hazelcast
+    - micro-mq
 
-  messages:
+  messages-node1:
     build: ./messages-service
-    container_name: messages
+    container_name: messages-node1
     ports:
-      - "8004:8000"
+    - "8004:8000"
+    depends_on:
+    - kafka
     networks:
-    - micro-hazelcast
+    - micro-mq
+  
+  messages-node2:
+    build: ./messages-service
+    container_name: messages-node2
+    ports:
+    - "8005:8000"
+    depends_on:
+    - kafka
+    networks:
+    - micro-mq
 
   hazelcast-node1:
     image: hazelcast/hazelcast:latest
@@ -58,7 +71,7 @@ services:
     ports:
     - "127.0.0.1:5701:5701"
     networks:
-    - micro-hazelcast
+    - micro-mq
     environment:
     - HZ_CLUSTERNAME=micro-hazelcast
 
@@ -68,7 +81,7 @@ services:
     ports:
     - "127.0.0.1:5702:5701"
     networks:
-    - micro-hazelcast
+    - micro-mq
     environment:
     - HZ_CLUSTERNAME=micro-hazelcast
     
@@ -78,7 +91,7 @@ services:
     ports:
     - "127.0.0.1:5703:5701"
     networks:
-    - micro-hazelcast
+    - micro-mq
     environment:
     - HZ_CLUSTERNAME=micro-hazelcast
 
@@ -92,8 +105,50 @@ services:
     - MC_DEFAULT_CLUSTER_MEMBERS=hazelcast-node1, hazelcast-node2, hazelcast-node3
     - HZ_CLUSTERNAME=micro-hazelcast
     networks:
-    - micro-hazelcast
+    - micro-mq
+
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    container_name: zookeeper-server
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ALLOW_ANONYMOUS_LOGIN: yes
+    ports:
+      - 2181:2181
+    networks:
+      - micro-mq
+  
+  kafka:
+    image: bitnami/kafka:latest
+    container_name: kafka-server
+    depends_on:
+      - zookeeper
+    ports:
+      - 9092:9092
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      ALLOW_PLAINTEXT_LISTENER: yes
+    networks:
+      - micro-mq
+  
+  kafka-setup:
+    image: bitnami/kafka:latest
+    container_name: kafka-setup
+    restart: "no"
+    depends_on:
+      - kafka
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      # blocks until kafka is reachable
+      kafka-topics --bootstrap-server kafka-server:9092 --list
+
+      kafka-topics --bootstrap-server kafka-server:9092 --create --if-not-exists --topic messages --replication-factor 1
+      "
+    networks:
+      - micro-mq
 
 networks:
-  micro-hazelcast:
-    name: micro-hazelcast
+  micro-mq:
+    name: micro-mq
