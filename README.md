@@ -1,9 +1,9 @@
-# Lab 1: Microservices basics
+# Lab 3: Microservices with Hazelcast
 
 ## Usage
 To build our system, please run:
 ```bash
-docker compose up
+docker compose up -d
 ```
 
 To stop running our system:

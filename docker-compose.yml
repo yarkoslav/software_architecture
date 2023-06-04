@@ -4,17 +4,96 @@ services:
   facade:
     build: ./facade-service
     ports:
-      - "8000:8000"
+    - "8000:8000"
+    container_name: facade
     depends_on:
-      - messages
-      - logging
+    - messages
+    - logging-node1
+    - logging-node2
+    - logging-node3
+    networks:
+    - micro-hazelcast
 
-  logging:
+  logging-node1:
     build: ./logging-service
+    container_name: logging-node1
     ports:
-      - "8001:8000"
+    - "8001:8000"
+    depends_on:
+    - hazelcast-node1
+    networks:
+    - micro-hazelcast
+  
+  logging-node2:
+    build: ./logging-service
+    container_name: logging-node2
+    ports:
+    - "8002:8000"
+    depends_on:
+    - hazelcast-node2
+    networks:
+    - micro-hazelcast
+  
+  logging-node3:
+    build: ./logging-service
+    container_name: logging-node3
+    ports:
+    - "8003:8000"
+    depends_on:
+    - hazelcast-node3
+    networks:
+    - micro-hazelcast
 
   messages:
     build: ./messages-service
+    container_name: messages
     ports:
-      - "8002:8000"
+      - "8004:8000"
+    networks:
+    - micro-hazelcast
+
+  hazelcast-node1:
+    image: hazelcast/hazelcast:latest
+    container_name: hazelcast-node1
+    ports:
+    - "127.0.0.1:5701:5701"
+    networks:
+    - micro-hazelcast
+    environment:
+    - HZ_CLUSTERNAME=micro-hazelcast
+
+  hazelcast-node2:
+    image: hazelcast/hazelcast:latest
+    container_name: hazelcast-node2
+    ports:
+    - "127.0.0.1:5702:5701"
+    networks:
+    - micro-hazelcast
+    environment:
+    - HZ_CLUSTERNAME=micro-hazelcast
+    
+  hazelcast-node3:
+    image: hazelcast/hazelcast:latest
+    container_name: hazelcast-node3
+    ports:
+    - "127.0.0.1:5703:5701"
+    networks:
+    - micro-hazelcast
+    environment:
+    - HZ_CLUSTERNAME=micro-hazelcast
+
+  management-center:
+    image: hazelcast/management-center:latest
+    container_name: management-center
+    ports:
+    - "8080:8080"
+    environment:
+    - MC_DEFAULT_CLUSTER=dev
+    - MC_DEFAULT_CLUSTER_MEMBERS=hazelcast-node1, hazelcast-node2, hazelcast-node3
+    - HZ_CLUSTERNAME=micro-hazelcast
+    networks:
+    - micro-hazelcast
+
+networks:
+  micro-hazelcast:
+    name: micro-hazelcast

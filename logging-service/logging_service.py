@@ -1,9 +1,15 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+import hazelcast
 
 logging = FastAPI()
 
-db = {}
+hazelcast_client = hazelcast.HazelcastClient(cluster_name="micro-hazelcast", cluster_members=[
+    "hazelcast-node1", 
+    "hazelcast-node2",
+    "hazelcast-node3"
+])
+db = hazelcast_client.get_map("db").blocking()  
 
 @logging.get("/")
 async def root():
@@ -18,7 +24,4 @@ class Message(BaseModel):
 @logging.post("/")
 async def root(message: Message):
     print(f"LOG from LOGGING: POST with body: {message}")
-    if message.uuid in db:
-        raise HTTPException(status_code=406, detail="UUID already present")
-    else:
-        db[message.uuid] = message.message
+    db.put(message.uuid, message.message)
