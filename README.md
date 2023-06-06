@@ -1,4 +1,4 @@
-# Lab 4: Microservices with Message Queue (Kafka)
+# Lab 5: Microservices with Consul
 
 ## Usage
 To build our system, please run:

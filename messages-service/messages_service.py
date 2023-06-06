@@ -2,17 +2,32 @@ from fastapi import FastAPI
 from json import loads
 from kafka import KafkaConsumer
 import threading
+import consul
+import os
 
+
+consul_client = consul.Consul(host=os.environ["CONSUL_HOST"], port=os.environ["CONSUL_PORT"])
+
+
+def get_kv_consul_value(key):
+    _, data = consul_client.kv.get(key)
+    value = data['Value'].decode('utf-8')
+    return value
+
+
+KAFKA_BOOTSTRAP_SERVERS = get_kv_consul_value('kafka_bootstrap_servers').strip().split()
+KAFKA_TOPIC = get_kv_consul_value('kafka_topic')
+KAFKA_GROUP = get_kv_consul_value('kafka_group')
 
 db = []
 
 
 consumer = KafkaConsumer(
-        'messages',
-        bootstrap_servers=['kafka-server:9092'],
+        KAFKA_TOPIC,
+        bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
         auto_offset_reset='earliest',
         enable_auto_commit=True,
-        group_id='my-group',
+        group_id=KAFKA_GROUP,
         value_deserializer=lambda x: loads(x.decode('utf-8')))
 
 

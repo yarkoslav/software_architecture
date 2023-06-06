@@ -13,7 +13,13 @@ services:
     - logging-node2
     - logging-node3
     networks:
-    - micro-mq
+    - micro-consule
+    environment:
+    - CONSUL_HOST=consul
+    - CONSUL_PORT=8500
+    - SERVICE_NAME=facade
+    - SERVICE_ADDRESS=facade
+    - SERVICE_PORT=8000
 
   logging-node1:
     build: ./logging-service
@@ -21,9 +27,19 @@ services:
     ports:
     - "8001:8000"
     depends_on:
-    - hazelcast-node1
+      consul-setup:
+        condition: service_completed_successfully
+      hazelcast-node1:
+        condition: service_started
     networks:
-    - micro-mq
+    - micro-consule
+    environment:
+    - CONSUL_HOST=consul
+    - CONSUL_PORT=8500
+    - SERVICE_NAME=logging-node1
+    - SERVICE_ADDRESS=logging-node1
+    - SERVICE_PORT=8000
+    
   
   logging-node2:
     build: ./logging-service
@@ -31,9 +47,18 @@ services:
     ports:
     - "8002:8000"
     depends_on:
-    - hazelcast-node2
+      consul-setup:
+        condition: service_completed_successfully
+      hazelcast-node2:
+        condition: service_started
     networks:
-    - micro-mq
+    - micro-consule
+    environment:
+    - CONSUL_HOST=consul
+    - CONSUL_PORT=8500
+    - SERVICE_NAME=logging-node2
+    - SERVICE_ADDRESS=logging-node2
+    - SERVICE_PORT=8000
   
   logging-node3:
     build: ./logging-service
@@ -41,9 +66,18 @@ services:
     ports:
     - "8003:8000"
     depends_on:
-    - hazelcast-node3
+      consul-setup:
+        condition: service_completed_successfully
+      hazelcast-node3:
+        condition: service_started
     networks:
-    - micro-mq
+    - micro-consule
+    environment:
+    - CONSUL_HOST=consul
+    - CONSUL_PORT=8500
+    - SERVICE_NAME=logging-node3
+    - SERVICE_ADDRESS=logging-node3
+    - SERVICE_PORT=8000
 
   messages-node1:
     build: ./messages-service
@@ -51,9 +85,18 @@ services:
     ports:
     - "8004:8000"
     depends_on:
-    - kafka
+      consul-setup:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_started
     networks:
-    - micro-mq
+    - micro-consule
+    environment:
+    - CONSUL_HOST=consul
+    - CONSUL_PORT=8500
+    - SERVICE_NAME=messages-node1
+    - SERVICE_ADDRESS=messages-node1
+    - SERVICE_PORT=8000
   
   messages-node2:
     build: ./messages-service
@@ -61,17 +104,26 @@ services:
     ports:
     - "8005:8000"
     depends_on:
-    - kafka
+      consul-setup:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_started
     networks:
-    - micro-mq
-
+    - micro-consule
+    environment:
+    - CONSUL_HOST=consul
+    - CONSUL_PORT=8500
+    - SERVICE_NAME=messages-node2
+    - SERVICE_ADDRESS=messages-node2
+    - SERVICE_PORT=8000
+  
   hazelcast-node1:
     image: hazelcast/hazelcast:latest
     container_name: hazelcast-node1
     ports:
     - "127.0.0.1:5701:5701"
     networks:
-    - micro-mq
+    - micro-consule
     environment:
     - HZ_CLUSTERNAME=micro-hazelcast
 
@@ -81,7 +133,7 @@ services:
     ports:
     - "127.0.0.1:5702:5701"
     networks:
-    - micro-mq
+    - micro-consule
     environment:
     - HZ_CLUSTERNAME=micro-hazelcast
     
@@ -91,7 +143,7 @@ services:
     ports:
     - "127.0.0.1:5703:5701"
     networks:
-    - micro-mq
+    - micro-consule
     environment:
     - HZ_CLUSTERNAME=micro-hazelcast
 
@@ -105,7 +157,7 @@ services:
     - MC_DEFAULT_CLUSTER_MEMBERS=hazelcast-node1, hazelcast-node2, hazelcast-node3
     - HZ_CLUSTERNAME=micro-hazelcast
     networks:
-    - micro-mq
+    - micro-consule
 
   zookeeper:
     image: bitnami/zookeeper:latest
@@ -116,7 +168,7 @@ services:
     ports:
       - 2181:2181
     networks:
-      - micro-mq
+      - micro-consule
   
   kafka:
     image: bitnami/kafka:latest
@@ -130,8 +182,8 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       ALLOW_PLAINTEXT_LISTENER: yes
     networks:
-      - micro-mq
-  
+      - micro-consule
+
   kafka-setup:
     image: bitnami/kafka:latest
     container_name: kafka-setup
@@ -147,8 +199,43 @@ services:
       kafka-topics --bootstrap-server kafka-server:9092 --create --if-not-exists --topic messages --replication-factor 1
       "
     networks:
-      - micro-mq
+      - micro-consule
+  
+  consul:
+    image: hashicorp/consul:1.11.2
+    container_name: consul
+    restart: always
+    networks:
+      - micro-consule
+    healthcheck:
+      test: [ "CMD", "consul", "members" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    ports:
+      - "8500:8500"
+    
+  consul-setup:
+    image: hashicorp/consul:1.11.2
+    container_name: consul-setup
+    restart: "no"
+    networks:
+      - micro-consule
+    depends_on:
+      consul:
+        condition: service_healthy
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      consul kv put -http-addr=consul:8500 hazelcast_cluster_name micro-hazelcast
+      consul kv put -http-addr=consul:8500 hazelcast_cluster_members hazelcast-node1,hazelcast-node2,hazelcast-node3
+      consul kv put -http-addr=consul:8500 hazelcast_db db
+      consul kv put -http-addr=consul:8500 kafka_bootstrap_servers kafka-server:9092
+      consul kv put -http-addr=consul:8500 kafka_topic messages
+      consul kv put -http-addr=consul:8500 kafka_group my-group
+      "
 
 networks:
-  micro-mq:
-    name: micro-mq
+  micro-consule:
+    name: micro-consule
